@@ -82,7 +82,7 @@ class LaserCursor {
             style_class: 'spotlight-laser',
             visible: false,
         });
-        Main.uiGroup.add_child(this._widget);
+        global.stage.add_child(this._widget);
         this._callbackId = null;
         this._laters = global.compositor.get_laters();
     }
@@ -129,6 +129,7 @@ class LaserCursor {
 
     destroy() {
         this.hide();
+        global.stage.remove_child(this._widget);
         this._widget.destroy();
     }
 }
