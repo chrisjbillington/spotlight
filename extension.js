@@ -12,6 +12,68 @@ import Gio from 'gi://Gio';
 const ICON_NAME = 'applications-graphics-symbolic';
 const MOUSE_POLL_INTERVAL_MS = 16;
 
+// class for showing and hiding system cursor
+class SystemCursor {
+    constructor() {
+        this._cursor_tracker = global.backend.get_cursor_tracker();
+        this._seat = Clutter.get_default_backend().get_default_seat();
+        this._unfocus_inhibited = false;
+    }
+
+    show() {
+        this._cursor_tracker.disconnectObject(this);
+        if (this._unfocus_inhibited) {
+            this._seat.uninhibit_unfocus();
+            this._unfocus_inhibited = false;
+        }
+        this._show();
+        this._cursor_hidden = false;
+    }
+
+    hide() {
+        if (!this._unfocus_inhibited) {
+            this._seat.inhibit_unfocus();
+            this._unfocus_inhibited = true;
+        }
+
+        if (!this._cursor_hidden) {
+            this._hide()
+            this._cursor_hidden = true;
+            // Attach callback to re-hide it if it changes. From GNOME 49 we could use
+            // this._cursorTracker.{un,}inhibit_cursor_visibility() instead
+            this._cursor_tracker.connectObject(
+                'visibility-changed', this._hide.bind(this), this,
+            )
+        }
+    }
+
+    setVisible(visible) {
+        if (visible) {
+            this.show();
+        } else {
+            this.hide();
+        }
+    }
+
+    _show() {
+        if (!this._cursor_tracker.get_pointer_visible()) {
+            this._cursor_tracker.set_pointer_visible(true)
+        }
+    }
+
+    _hide() {
+        if (this._cursor_tracker.get_pointer_visible()) {
+            this._cursor_tracker.set_pointer_visible(false)
+        }
+    }
+
+    destroy() {
+        this.show();
+        this._seat.destroy();
+        this._cursor_tracker.destroy();
+    }
+}
+
 
 const SpotlightIndicator = GObject.registerClass(
 class SpotlightIndicator extends QuickSettings.SystemIndicator {
@@ -54,42 +116,14 @@ export default class SpotlightExtension extends Extension {
             visible: false,
         });
        
-       // // Add to the UI group (chrome layer) first
-       //  Main.layoutManager.addChrome(this.widget, {
-       //      affectsStruts: true,
-       //      trackFullscreen: true,
-       //  });
-
         // Add laser to the stage
         Main.uiGroup.add_child(this._laser);
         
-        // Track mouse position
-        this._motionId = null;
+        this._system_cursor = new SystemCursor();
 
+        this._timeoutId = null;
         this._cursor_tracker = global.backend.get_cursor_tracker();
 
-    }
-
-    _setCursorVisible(visible) {
-        this._cursor_tracker.disconnectObject(this);
-        if (visible) {
-            // this._cursor_tracker.inhibit_cursor_visibility(); // doesn't exist?
-            // global.display.set_cursor(Meta.Cursor.DEFAULT);
-            this._cursor_tracker.set_pointer_visible(true)
-
-        } else {
-            // this._cursor_tracker.uninhibit_cursor_visibility(); // doesn't exist? Maybe only in X?
-            // global.display.set_cursor(Meta.Cursor.None); // temporary
-            this._cursor_tracker.set_pointer_visible(false); // temporary
-            // this._cursor_tracker.connect( // Prevents clicks!
-            //     'visibility-changed', () => {
-            //         global.display.set_cursor(Meta.Cursor.NONE);
-            //         if (this._cursor_tracker.get_pointer_visible()) {
-            //             this._cursor_tracker.set_pointer_visible(false);
-            //         }
-            //     },
-            // );
-        }
     }
 
     _onToggled(toggle) {
@@ -97,7 +131,7 @@ export default class SpotlightExtension extends Extension {
         const enabled = toggle.checked;
         this._indicator.setVisible(enabled);
         this._laser.visible = enabled;
-        this._setCursorVisible(!enabled)
+        this._system_cursor.setVisible(!enabled)
 
         // Stop any previous timeout:
         if (this._timeoutId) {
@@ -118,22 +152,14 @@ export default class SpotlightExtension extends Extension {
     _onTimeout() {
         // move laser to cursor position:
         let [x, y] = global.get_pointer();
-        this._laser.set_position(x - 8, y - 8);
+        let [laser_width, laser_height] = this._laser.get_size();
+        this._laser.set_position(x - laser_width / 2, y - laser_width / 2);
         return GLib.SOURCE_CONTINUE;
     }
 
     disable() {
         console.log("disable()");
-        
-        if (this._motionId) {
-            // Disconnect any previous mouse tracking:
-            global.stage.disconnect(this._motionId);
-            this._motionId = null;
-        }
-        // Restore cursor if it was hidden:
-        this._setCursorVisible(true);
-
-        // Destroy widgets:
+        this._system_cursor.destroy();
         this._toggle.destroy();
         this._indicator.destroy();
         this._laser.destroy();
