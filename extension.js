@@ -3,12 +3,14 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js'
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
 import Gio from 'gi://Gio';
 
 
 const ICON_NAME = 'applications-graphics-symbolic';
+const MOUSE_POLL_INTERVAL_MS = 16;
 
 
 const SpotlightIndicator = GObject.registerClass(
@@ -51,70 +53,89 @@ export default class SpotlightExtension extends Extension {
             style_class: 'spotlight-laser',
             visible: false,
         });
-        
+       
+       // // Add to the UI group (chrome layer) first
+       //  Main.layoutManager.addChrome(this.widget, {
+       //      affectsStruts: true,
+       //      trackFullscreen: true,
+       //  });
+
         // Add laser to the stage
         Main.uiGroup.add_child(this._laser);
         
         // Track mouse position
-        // this._mouseUpdateId = null;
+        this._motionId = null;
+
+        this._cursor_tracker = global.backend.get_cursor_tracker();
+
+    }
+
+    _setCursorVisible(visible) {
+        this._cursor_tracker.disconnectObject(this);
+        if (visible) {
+            // this._cursor_tracker.inhibit_cursor_visibility(); // doesn't exist?
+            // global.display.set_cursor(Meta.Cursor.DEFAULT);
+            this._cursor_tracker.set_pointer_visible(true)
+
+        } else {
+            // this._cursor_tracker.uninhibit_cursor_visibility(); // doesn't exist? Maybe only in X?
+            // global.display.set_cursor(Meta.Cursor.None); // temporary
+            this._cursor_tracker.set_pointer_visible(false); // temporary
+            // this._cursor_tracker.connect( // Prevents clicks!
+            //     'visibility-changed', () => {
+            //         global.display.set_cursor(Meta.Cursor.NONE);
+            //         if (this._cursor_tracker.get_pointer_visible()) {
+            //             this._cursor_tracker.set_pointer_visible(false);
+            //         }
+            //     },
+            // );
+        }
     }
 
     _onToggled(toggle) {
         console.log("_onToggled()");
-        this._indicator.setVisible(toggle.checked);
-        this._laser.visible = toggle.checked;
-        
-        // if (this._laser_enabled) {
-        //     // Show red dot and hide cursor
-        //     this._laser.visible = true;
-        //     this._startMouseTracking();
-        //     global.display.set_cursor(Meta.Cursor.BLANK);
-        // } else {
-        //     // Hide red dot and show cursor
-        //     this._laser.visible = false;
-        //     this._stopMouseTracking();
-        //     global.display.set_cursor(Meta.Cursor.DEFAULT);
-        // }
-        
-        // // Update indicator
-        // this._indicator.updateIndicator(this._laser_enabled);
+        const enabled = toggle.checked;
+        this._indicator.setVisible(enabled);
+        this._laser.visible = enabled;
+        this._setCursorVisible(!enabled)
+
+        // Stop any previous timeout:
+        if (this._timeoutId) {
+            GLib.source_remove(this._timeoutId);
+            this._timeoutId = null;
+        }
+
+        if (enabled) {
+            // Start mouse poll timeout:
+            this._timeoutId = GLib.timeout_add(
+                GLib.PRIORITY_HIGH,
+                MOUSE_POLL_INTERVAL_MS,
+                this._onTimeout.bind(this),
+            )
+        }
     }
     
-    // _startMouseTracking() {
-    //     if (this._mouseUpdateId) {
-    //         return;
-    //     }
-        
-    //     this._mouseUpdateId = global.stage.connect('motion-event', () => {
-    //         let [x, y] = global.get_pointer();
-    //         this._laser.set_position(x - 8, y - 8);
-    //         return Clutter.EVENT_PROPAGATE;
-    //     });
-        
-    //     // Set initial position
-    //     let [x, y] = global.get_pointer();
-    //     this._laser.set_position(x - 8, y - 8);
-    // }
-    
-    // _stopMouseTracking() {
-    //     if (this._mouseUpdateId) {
-    //         global.stage.disconnect(this._mouseUpdateId);
-    //         this._mouseUpdateId = null;
-    //     }
-    // }
+    _onTimeout() {
+        // move laser to cursor position:
+        let [x, y] = global.get_pointer();
+        this._laser.set_position(x - 8, y - 8);
+        return GLib.SOURCE_CONTINUE;
+    }
 
     disable() {
         console.log("disable()");
         
+        if (this._motionId) {
+            // Disconnect any previous mouse tracking:
+            global.stage.disconnect(this._motionId);
+            this._motionId = null;
+        }
+        // Restore cursor if it was hidden:
+        this._setCursorVisible(true);
+
+        // Destroy widgets:
         this._toggle.destroy();
         this._indicator.destroy();
-
-        // Restore cursor if it was hidden
-        // if (this._laser_enabled) {
-        //     global.display.set_cursor(Meta.Cursor.DEFAULT);
-        // }
-        
-        // Stop mouse tracking
-        // this._stopMouseTracking();
+        this._laser.destroy();
     }
 }
