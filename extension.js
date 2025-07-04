@@ -72,8 +72,6 @@ class SystemCursor {
 
     destroy() {
         this.show();
-        this._seat.destroy();
-        this._cursor_tracker.destroy();
     }
 }
 
@@ -87,43 +85,42 @@ class SpotlightOverlay {
         this._container.set_position(0, 0);
         
         // Create a massive ring that covers the entire screen
-        let spotlightRadius = (global.screen_height * SPOTLIGHT_DIAMETER_FRACTION) / 2;
+        this._spotlightRadius = (global.screen_height * SPOTLIGHT_DIAMETER_FRACTION) / 2;
         let maxDimension = Math.max(global.screen_width, global.screen_height);
-        let ringSize = maxDimension * 10; // Make it huge to cover any screen
-        let ringRadius = ringSize / 2;
-        let borderThickness = ringRadius - spotlightRadius;
+        this._overlayRadius = maxDimension * 2; // hopefully bigger than any screen
+        let borderThickness = this._overlayRadius - this._spotlightRadius;
         
-        this._ring = new St.Widget({
-            style_class: 'spotlight-ring',
+        this._overlay = new St.Widget({
+            style_class: 'spotlight-overlay',
         });
-        this._ring.set_size(ringSize, ringSize);
-        this._ring.set_style(`
-            border-radius: ${ringRadius}px;
+        this._overlay.set_size(2 * this._overlayRadius, 2 * this._overlayRadius);
+        this._overlay.set_style(`
+            border-radius: ${this._overlayRadius}px;
             border: ${borderThickness}px solid rgba(0, 0, 0, 0.35);
             background-color: rgba(0, 0, 0, 0);
         `);
         
         // Create the green border
-        let borderSize = (spotlightRadius + SPOTLIGHT_BORDER_WIDTH) * 2;
+        let borderSize = (this._spotlightRadius + SPOTLIGHT_BORDER_WIDTH) * 2;
         this._border = new St.Widget({
             style_class: 'spotlight-border',
         });
         this._border.set_size(borderSize, borderSize);
         this._border.set_style(`
-            border-radius: ${spotlightRadius + SPOTLIGHT_BORDER_WIDTH}px;
+            border-radius: ${this._spotlightRadius + SPOTLIGHT_BORDER_WIDTH}px;
             border: ${SPOTLIGHT_BORDER_WIDTH}px solid rgba(0, 255, 0, 0.5);
             background-color: rgba(0, 0, 0, 0);
         `);
         
-        this._spotlightRadius = spotlightRadius;
-        
-        this._container.add_child(this._ring);
+        this._container.add_child(this._overlay);
         this._container.add_child(this._border);
-        
         global.stage.add_child(this._container);
         this._callbackId = null;
         this._laters = global.compositor.get_laters();
-        this._ringRadius = ringRadius;
+
+        this._container.connect('destroy', () => {this._container = null});
+        this._overlay.connect('destroy', () => {this._overlay = null});
+        this._border.connect('destroy', () => {this._border = null});
     }
 
     _schedule_update() {
@@ -138,25 +135,33 @@ class SpotlightOverlay {
     }
 
     show() {
+        if (!this._container) {
+            return;
+        }
         this._updatePosition();
         this._container.show();
         this._schedule_update();
     }
 
     _updatePosition() {
+        if (!this._overlay || !this._border  || !this._container) {
+            return;
+        }
         // Update spotlight position to follow cursor
         let [x, y] = global.get_pointer();
         
-        // Center the ring on the cursor
-        this._ring.set_position(x - this._ringRadius, y - this._ringRadius);
+        // Center the spotlight on the cursor
+        this._overlay.set_position(x - this._overlayRadius, y - this._overlayRadius);
         
-        // Position the green border
+        // Position the border
         let borderOffset = this._spotlightRadius + SPOTLIGHT_BORDER_WIDTH;
         this._border.set_position(x - borderOffset, y - borderOffset);
     }
 
     hide() {
-        this._container.hide();
+        if (this._container) {
+            this._container.hide();
+        }
         if (this._callbackId) {
             this._laters.remove(this._callbackId);
             this._callbackId = null;
@@ -173,8 +178,16 @@ class SpotlightOverlay {
 
     destroy() {
         this.hide();
-        global.stage.remove_child(this._container);
-        this._container.destroy();
+        if (this._border) {
+            this._border.destroy();
+        }
+        if (this._overlay) {
+            this._overlay.destroy();
+        }
+        if (this._container) {
+            global.stage.remove_child(this._container);
+            this._container.destroy();
+        }
     }
 }
 
@@ -188,6 +201,7 @@ class LaserCursor {
         global.stage.add_child(this._widget);
         this._callbackId = null;
         this._laters = global.compositor.get_laters();
+        this._widget.connect('destroy', () => {this._widget = null});
     }
 
     _schedule_update() {
@@ -202,12 +216,18 @@ class LaserCursor {
     }
 
     show() {
+        if (!this._widget) {
+            return;
+        }
         this._moveToCursor();
         this._widget.show();
         this._schedule_update();
     }
 
     _moveToCursor() {
+        if (!this._widget) {
+           return;
+       }
         // move laser to cursor position:
         let [x, y] = global.get_pointer();
         let [width, height] = this._widget.get_size();
@@ -215,7 +235,9 @@ class LaserCursor {
     }
 
     hide() {
-        this._widget.hide();
+        if (this._widget) {
+            this._widget.hide();
+        }
         if (this._callbackId) {
             this._laters.remove(this._callbackId);
             this._callbackId = null;
@@ -232,8 +254,10 @@ class LaserCursor {
 
     destroy() {
         this.hide();
-        global.stage.remove_child(this._widget);
-        this._widget.destroy();
+        if (this._widget) {
+            global.stage.remove_child(this._widget);
+            this._widget.destroy();
+        }
     }
 }
 
@@ -255,14 +279,14 @@ class SpotlightIndicator extends QuickSettings.SystemIndicator {
 
 export default class SpotlightExtension extends Extension {
     constructor(metadata) {
-        console.log("constructor()")
+        // console.log("constructor()")
         super(metadata);
     }
 
     enable() {
-        console.log("enable()");
+        // console.log("enable()");
         this._toggle = new QuickSettings.QuickToggle({
-            title: 'Spotlight',
+            title: 'Laser pointer',
             iconName: ICON_NAME,
             toggleMode: true
         });
@@ -289,7 +313,7 @@ export default class SpotlightExtension extends Extension {
     }
 
     _onToggled(toggle) {
-        console.log("_onToggled()");
+        // console.log("_onToggled()");
         const enabled = toggle.checked;
         this._indicator.set_visible(enabled);
         this._laser_cursor.set_visible(enabled && !this._spotlight_mode)
@@ -303,7 +327,7 @@ export default class SpotlightExtension extends Extension {
     }
 
     _toggleSpotlightMode() {
-        console.log("_toggleSpotlightMode()");
+        // console.log("_toggleSpotlightMode()");
         this._spotlight_mode = !this._spotlight_mode;
         this._spotlight_overlay.set_visible(this._spotlight_mode);
         this._laser_cursor.set_visible(this._toggle.checked && !this._spotlight_mode);
@@ -311,7 +335,7 @@ export default class SpotlightExtension extends Extension {
     }
     
     disable() {
-        console.log("disable()");
+        // console.log("disable()");
         Main.wm.removeKeybinding('toggle-spotlight-mode');
         this._spotlight_overlay.destroy();
         this._laser_cursor.destroy();
