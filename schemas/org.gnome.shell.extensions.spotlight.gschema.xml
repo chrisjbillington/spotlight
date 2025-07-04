@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.spotlight" path="/org/gnome/shell/extensions/spotlight/">
+    <key name="toggle-spotlight-mode" type="as">
+      <default>["&lt;Control&gt;&lt;Alt&gt;s"]</default>
+      <summary>Toggle spotlight mode</summary>
+      <description>Hotkey to toggle spotlight mode on and off</description>
+    </key>
+  </schema>
+</schemalist>
