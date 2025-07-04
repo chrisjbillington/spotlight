@@ -47,16 +47,13 @@ export default class SpotlightExtension extends Extension {
         Main.panel.statusArea.quickSettings.addExternalIndicator(this._indicator);
         
         // Create red dot widget
-        // this._laser = new St.Widget({
-        //     style_class: 'spotlight-laser',
-        //     width: 16,
-        //     height: 16,
-        //     visible: false,
-        //     reactive: false
-        // });
+        this._laser = new St.Widget({
+            style_class: 'spotlight-laser',
+            visible: false,
+        });
         
         // Add laser to the stage
-        // Main.uiGroup.add_child(this._laser);
+        Main.uiGroup.add_child(this._laser);
         
         // Track mouse position
         // this._mouseUpdateId = null;
@@ -65,6 +62,7 @@ export default class SpotlightExtension extends Extension {
     _onToggled(toggle) {
         console.log("_onToggled()");
         this._indicator.setVisible(toggle.checked);
+        this._laser.visible = toggle.checked;
         
         // if (this._laser_enabled) {
         //     // Show red dot and hide cursor
