@@ -7,7 +7,9 @@ import Meta from 'gi://Meta';
 import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
 import Gio from 'gi://Gio';
 
+
 const ICON_NAME = 'applications-graphics-symbolic';
+
 
 const SpotlightIndicator = GObject.registerClass(
 class SpotlightIndicator extends QuickSettings.SystemIndicator {
@@ -20,11 +22,6 @@ class SpotlightIndicator extends QuickSettings.SystemIndicator {
     
     setVisible(visible) {
         this._indicator.visible = visible;
-    }
-    
-    destroy() {
-        this.quickSettingsItems.forEach(item => item.destroy());
-        super.destroy();
     }
 });
 
@@ -68,7 +65,6 @@ export default class SpotlightExtension extends Extension {
     _onToggled(toggle) {
         console.log("_onToggled()");
         this._indicator.setVisible(toggle.checked);
-        // this._laser_enabled = !this._laser_enabled;
         
         // if (this._laser_enabled) {
         //     // Show red dot and hide cursor
@@ -112,6 +108,9 @@ export default class SpotlightExtension extends Extension {
     disable() {
         console.log("disable()");
         
+        this._toggle.destroy();
+        this._indicator.destroy();
+
         // Restore cursor if it was hidden
         // if (this._laser_enabled) {
         //     global.display.set_cursor(Meta.Cursor.DEFAULT);
@@ -119,16 +118,5 @@ export default class SpotlightExtension extends Extension {
         
         // Stop mouse tracking
         // this._stopMouseTracking();
-        
-        // Destroy widgets
-        if (this._laser) {
-            this._laser.destroy();
-            this._laser = null;
-        }
-        
-        if (this._indicator) {
-            this._indicator.destroy();
-            this._indicator = null;
-        }
     }
 }
