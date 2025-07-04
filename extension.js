@@ -12,6 +12,7 @@ import Gio from 'gi://Gio';
 const ICON_NAME = 'applications-graphics-symbolic';
 const MOUSE_POLL_INTERVAL_MS = 16;
 
+
 // class for showing and hiding system cursor
 class SystemCursor {
     constructor() {
@@ -47,7 +48,7 @@ class SystemCursor {
         }
     }
 
-    setVisible(visible) {
+    set_visible(visible) {
         if (visible) {
             this.show();
         } else {
@@ -75,6 +76,64 @@ class SystemCursor {
 }
 
 
+class LaserCursor {
+    constructor() {
+        this._widget = new St.Widget({
+            style_class: 'spotlight-laser',
+            visible: false,
+        });
+        Main.uiGroup.add_child(this._widget);
+        this._callbackId = null;
+        this._laters = global.compositor.get_laters();
+    }
+
+    _schedule_update() {
+        if (this._callbackId) {
+            return;
+        }
+        this._callbackId = this._laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
+            this._moveToCursor();
+            this._callbackId = null;
+            this._schedule_update(); // next frame
+        });
+    }
+
+    show() {
+        this._moveToCursor();
+        this._widget.show();
+        this._schedule_update();
+    }
+
+    _moveToCursor() {
+        // move laser to cursor position:
+        let [x, y] = global.get_pointer();
+        let [width, height] = this._widget.get_size();
+        this._widget.set_position(x - width / 2, y - height / 2);
+    }
+
+    hide() {
+        this._widget.hide();
+        if (this._callbackId) {
+            this._laters.remove(this._callbackId);
+            this._callbackId = null;
+        }
+    }
+
+    set_visible(visible) {
+        if (visible) {
+            this.show();
+        } else {
+            this.hide();
+        }
+    }
+
+    destroy() {
+        this.hide();
+        this._widget.destroy();
+    }
+}
+
+
 const SpotlightIndicator = GObject.registerClass(
 class SpotlightIndicator extends QuickSettings.SystemIndicator {
     _init(extension) {
@@ -84,7 +143,7 @@ class SpotlightIndicator extends QuickSettings.SystemIndicator {
         this._indicator.visible = false;
     }
     
-    setVisible(visible) {
+    set_visible(visible) {
         this._indicator.visible = visible;
     }
 });
@@ -110,58 +169,23 @@ export default class SpotlightExtension extends Extension {
         // Add indicator to Quick Settings menu
         Main.panel.statusArea.quickSettings.addExternalIndicator(this._indicator);
         
-        // Create red dot widget
-        this._laser = new St.Widget({
-            style_class: 'spotlight-laser',
-            visible: false,
-        });
-       
-        // Add laser to the stage
-        Main.uiGroup.add_child(this._laser);
-        
         this._system_cursor = new SystemCursor();
-
-        this._timeoutId = null;
-        this._cursor_tracker = global.backend.get_cursor_tracker();
-
+        this._laser_cursor = new LaserCursor();
     }
 
     _onToggled(toggle) {
         console.log("_onToggled()");
         const enabled = toggle.checked;
-        this._indicator.setVisible(enabled);
-        this._laser.visible = enabled;
-        this._system_cursor.setVisible(!enabled)
-
-        // Stop any previous timeout:
-        if (this._timeoutId) {
-            GLib.source_remove(this._timeoutId);
-            this._timeoutId = null;
-        }
-
-        if (enabled) {
-            // Start mouse poll timeout:
-            this._timeoutId = GLib.timeout_add(
-                GLib.PRIORITY_HIGH,
-                MOUSE_POLL_INTERVAL_MS,
-                this._onTimeout.bind(this),
-            )
-        }
+        this._indicator.set_visible(enabled);
+        this._laser_cursor.set_visible(enabled)
+        this._system_cursor.set_visible(!enabled)
     }
     
-    _onTimeout() {
-        // move laser to cursor position:
-        let [x, y] = global.get_pointer();
-        let [laser_width, laser_height] = this._laser.get_size();
-        this._laser.set_position(x - laser_width / 2, y - laser_width / 2);
-        return GLib.SOURCE_CONTINUE;
-    }
-
     disable() {
         console.log("disable()");
+        this._laser_cursor.destroy();
         this._system_cursor.destroy();
         this._toggle.destroy();
         this._indicator.destroy();
-        this._laser.destroy();
     }
 }
