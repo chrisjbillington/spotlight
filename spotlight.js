@@ -22,7 +22,6 @@ class _Spotlight {
         // A ring that covers the entire extent of all screens, implemented as a border:
         this._innerRadius = (monitor.height * SPOTLIGHT_DIAMETER_FRACTION) / 2;
         this._outerRadius = Math.sqrt(global.screen_width**2 + global.screen_height**2);
-        let borderThickness = this._outerRadius - this._innerRadius;
         
         this._overlay = new St.Widget({
             style_class: 'spotlight-overlay',
@@ -30,7 +29,7 @@ class _Spotlight {
         this._overlay.set_size(2 * this._outerRadius, 2 * this._outerRadius);
         this._overlay.set_style(`
             border-radius: ${this._outerRadius}px;
-            border: ${borderThickness}px solid rgba(0, 0, 0, 0.35);
+            border: ${this._outerRadius - this._innerRadius}px solid rgba(0, 0, 0, 0.35);
             background-color: rgba(0, 0, 0, 0);
         `);
         
@@ -81,7 +80,7 @@ class _Spotlight {
         if (!this._overlay || !this._border  || !this._widget) {
             return;
         }
-        // Center the spotlight on the cursor (relative to monitor)
+        // Center the spotlight on the cursor:
         this._overlay.set_position(x - this._monitor.x - this._outerRadius, y - this._monitor.y - this._outerRadius);
         
         // Position the border (relative to monitor)

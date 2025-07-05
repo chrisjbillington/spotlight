@@ -45,7 +45,7 @@ export default class SpotlightExtension extends Extension {
         });
         this._indicator = new SpotlightIndicator();
         this._indicator.quickSettingsItems.push(this._toggle);
-        this._toggle.connectObject('clicked', this._onToggled.bind(this), this);
+        this._toggle.connectObject('clicked', this._on_toggle.bind(this), this);
 
         // Add indicator to Quick Settings menu
         Main.panel.statusArea.quickSettings.addExternalIndicator(this._indicator);
@@ -71,12 +71,14 @@ export default class SpotlightExtension extends Extension {
         );
     }
 
-    _onToggled(toggle) {
-        // console.log("_onToggled()");
+    _on_toggle(toggle) {
+        // console.log("_on_toggle()");
         const enabled = toggle.checked;
         this._indicator.set_visible(enabled);
-        this._laser_pointer.set_enabled(enabled && !this._spotlight_mode)
-        this._spotlight.set_enabled(enabled && this._spotlight_mode)
+        // always start in laser pointer mode (and harmless to reset to it on disable):
+        this._spotlight_mode = false;
+        this._laser_pointer.set_enabled(enabled);
+        this._spotlight.set_enabled(false);
         this._system_cursor.set_visible(!enabled);
     }
 
