@@ -13,7 +13,7 @@ const INTERFACE_SCHEMA = `
 </node>
 `;
 
-export class DbusServer {
+export class DbusService {
     // Class to receive events over dbus from the Python evdev process and emit events
     // Application should connect to the following signals emitted by DbusServer.events
     // (currently only one):

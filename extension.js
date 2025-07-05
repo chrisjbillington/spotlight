@@ -10,7 +10,7 @@ import Shell from 'gi://Shell';
 import {SystemCursor} from './systemCursor.js';
 import {LaserPointer} from './laserPointer.js';
 import {Spotlight} from './spotlight.js';
-import {DbusServer} from './dbusServer.js';
+import {DbusService} from './dbusService.js';
 
 const ICON_NAME = 'find-location-symbolic';
 
@@ -39,7 +39,7 @@ export default class SpotlightExtension extends Extension {
     enable() {
         // console.log("enable()");
         this._toggle = new QuickSettings.QuickToggle({
-            title: 'Laser pointer',
+            title: 'Spotlight',
             iconName: ICON_NAME,
             toggleMode: true
         });
@@ -51,61 +51,52 @@ export default class SpotlightExtension extends Extension {
         Main.panel.statusArea.quickSettings.addExternalIndicator(this._indicator);
         
         this._system_cursor = new SystemCursor();
-        this._laser_cursor = new LaserPointer();
-        this._spotlight_overlay = new Spotlight();
-        this._dbus_server = new DbusServer();
-        this._dbus_server.events.connectObject(
+        this._laser_pointer = new LaserPointer();
+        this._spotlight = new Spotlight();
+        this._dbus_service = new DbusService();
+        this._dbus_service.events.connectObject(
             'switch-mode',
             this._switch_mode.bind(this),
             this
         );
         this._spotlight_mode = false;
 
-        // Add keybinding for spotlight mode
+        // Add keybinding for switching mode:
         this._settings = this.getSettings('org.gnome.shell.extensions.spotlight');
         Main.wm.addKeybinding('toggle-spotlight-mode',
             this._settings, 
             Meta.KeyBindingFlags.NONE,
             Shell.ActionMode.NORMAL,
-            this._toggleSpotlightMode.bind(this)
+            this._switch_mode.bind(this)
         );
-    }
-
-    _switch_mode() {
-        console.log("_switch_mode()");
     }
 
     _onToggled(toggle) {
         // console.log("_onToggled()");
         const enabled = toggle.checked;
         this._indicator.set_visible(enabled);
-        this._laser_cursor.set_visible(enabled && !this._spotlight_mode)
-        this._updateSystemCursor();
+        this._laser_pointer.set_enabled(enabled && !this._spotlight_mode)
+        this._spotlight.set_enabled(enabled && this._spotlight_mode)
+        this._system_cursor.set_visible(!enabled);
     }
 
-    _updateSystemCursor() {
-        // Hide system cursor if either laser or spotlight is enabled
-        const shouldHideCursor = this._toggle.checked || this._spotlight_mode;
-        this._system_cursor.set_visible(!shouldHideCursor);
-    }
-
-    _toggleSpotlightMode() {
-        // console.log("_toggleSpotlightMode()");
+    _switch_mode() {
+        // console.log("_switch_mode()");
+        const enabled = this._toggle.checked;
         this._spotlight_mode = !this._spotlight_mode;
-        this._spotlight_overlay.set_visible(this._spotlight_mode);
-        this._laser_cursor.set_visible(this._toggle.checked && !this._spotlight_mode);
-        this._updateSystemCursor();
+        this._laser_pointer.set_enabled(enabled && !this._spotlight_mode)
+        this._spotlight.set_enabled(enabled && this._spotlight_mode)
     }
     
     disable() {
         // console.log("disable()");
         Main.wm.removeKeybinding('toggle-spotlight-mode');
-        this._spotlight_overlay.destroy();
-        this._laser_cursor.destroy();
+        this._spotlight.destroy();
+        this._laser_pointer.destroy();
         this._system_cursor.destroy();
         this._toggle.destroy();
         this._indicator.destroy();
-        this._dbus_server.events.disconnectObject(this);
-        this._dbus_server.destroy();
+        this._dbus_service.events.disconnectObject(this);
+        this._dbus_service.destroy();
     }
 }
