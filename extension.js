@@ -10,7 +10,7 @@ import Shell from 'gi://Shell';
 import {SystemCursor} from './systemCursor.js';
 import {LaserPointer} from './laserPointer.js';
 import {Spotlight} from './spotlight.js';
-
+import {DbusServer} from './dbusServer.js';
 
 const ICON_NAME = 'find-location-symbolic';
 
@@ -53,6 +53,12 @@ export default class SpotlightExtension extends Extension {
         this._system_cursor = new SystemCursor();
         this._laser_cursor = new LaserPointer();
         this._spotlight_overlay = new Spotlight();
+        this._dbus_server = new DbusServer();
+        this._dbus_server.events.connectObject(
+            'switch-mode',
+            this._switch_mode.bind(this),
+            this
+        );
         this._spotlight_mode = false;
 
         // Add keybinding for spotlight mode
@@ -63,6 +69,10 @@ export default class SpotlightExtension extends Extension {
             Shell.ActionMode.NORMAL,
             this._toggleSpotlightMode.bind(this)
         );
+    }
+
+    _switch_mode() {
+        console.log("_switch_mode()");
     }
 
     _onToggled(toggle) {
@@ -95,5 +105,7 @@ export default class SpotlightExtension extends Extension {
         this._system_cursor.destroy();
         this._toggle.destroy();
         this._indicator.destroy();
+        this._dbus_server.events.disconnectObject(this);
+        this._dbus_server.destroy();
     }
 }
