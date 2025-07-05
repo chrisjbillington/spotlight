@@ -86,8 +86,7 @@ class SpotlightOverlay {
         
         // Create a massive ring that covers the entire screen
         this._spotlightRadius = (global.screen_height * SPOTLIGHT_DIAMETER_FRACTION) / 2;
-        let maxDimension = Math.max(global.screen_width, global.screen_height);
-        this._overlayRadius = maxDimension * 2; // hopefully bigger than any screen
+        this._overlayRadius = Math.sqrt(global.screen_width**2 + global.screen_height**2);
         let borderThickness = this._overlayRadius - this._spotlightRadius;
         
         this._overlay = new St.Widget({
