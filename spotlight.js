@@ -1,40 +1,43 @@
 import Meta from 'gi://Meta';
 import St from 'gi://St';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const SPOTLIGHT_DIAMETER_FRACTION = 0.32;
 const SPOTLIGHT_BORDER_WIDTH = 8;
 
-export class Spotlight {
-    constructor() {
+class _Spotlight {
+    constructor(monitor) {
+        this._monitor = monitor;
         this._container = new St.Widget({
             visible: false,
+            clip_to_allocation: true,
         });
-        this._container.set_size(global.screen_width, global.screen_height);
-        this._container.set_position(0, 0);
+        this._container.set_size(monitor.width, monitor.height);
+        this._container.set_position(monitor.x, monitor.y);
         
-        // Create a massive ring that covers the entire screen
-        this._spotlightRadius = (global.screen_height * SPOTLIGHT_DIAMETER_FRACTION) / 2;
-        this._overlayRadius = Math.sqrt(global.screen_width**2 + global.screen_height**2);
-        let borderThickness = this._overlayRadius - this._spotlightRadius;
+        // A ring that covers the entire extent of all screens, implemented as a border:
+        this._innerRadius = (monitor.height * SPOTLIGHT_DIAMETER_FRACTION) / 2;
+        this._outerRadius = Math.sqrt(global.screen_width**2 + global.screen_height**2);
+        let borderThickness = this._outerRadius - this._innerRadius;
         
         this._overlay = new St.Widget({
             style_class: 'spotlight-overlay',
         });
-        this._overlay.set_size(2 * this._overlayRadius, 2 * this._overlayRadius);
+        this._overlay.set_size(2 * this._outerRadius, 2 * this._outerRadius);
         this._overlay.set_style(`
-            border-radius: ${this._overlayRadius}px;
+            border-radius: ${this._outerRadius}px;
             border: ${borderThickness}px solid rgba(0, 0, 0, 0.35);
             background-color: rgba(0, 0, 0, 0);
         `);
         
         // Create the green border
-        let borderSize = (this._spotlightRadius + SPOTLIGHT_BORDER_WIDTH) * 2;
+        let borderSize = (this._innerRadius + SPOTLIGHT_BORDER_WIDTH) * 2;
         this._border = new St.Widget({
             style_class: 'spotlight-border',
         });
         this._border.set_size(borderSize, borderSize);
         this._border.set_style(`
-            border-radius: ${this._spotlightRadius + SPOTLIGHT_BORDER_WIDTH}px;
+            border-radius: ${this._innerRadius + SPOTLIGHT_BORDER_WIDTH}px;
             border: ${SPOTLIGHT_BORDER_WIDTH}px solid rgba(0, 255, 0, 0.5);
             background-color: rgba(0, 0, 0, 0);
         `);
@@ -77,12 +80,12 @@ export class Spotlight {
         // Update spotlight position to follow cursor
         let [x, y] = global.get_pointer();
         
-        // Center the spotlight on the cursor
-        this._overlay.set_position(x - this._overlayRadius, y - this._overlayRadius);
+        // Center the spotlight on the cursor (relative to monitor)
+        this._overlay.set_position(x - this._monitor.x - this._outerRadius, y - this._monitor.y - this._outerRadius);
         
-        // Position the border
-        let borderOffset = this._spotlightRadius + SPOTLIGHT_BORDER_WIDTH;
-        this._border.set_position(x - borderOffset, y - borderOffset);
+        // Position the border (relative to monitor)
+        let borderOffset = this._innerRadius + SPOTLIGHT_BORDER_WIDTH;
+        this._border.set_position(x - this._monitor.x - borderOffset, y - this._monitor.y - borderOffset);
     }
 
     hide() {
@@ -115,5 +118,81 @@ export class Spotlight {
             global.stage.remove_child(this._container);
             this._container.destroy();
         }
+    }
+}
+
+export class Spotlight {
+    constructor() {
+        this._spotlights = [];
+        this._visible = false;
+        this._createSpotlights();
+        
+        // Listen for monitor changes
+        this._monitorChangedId = Main.layoutManager.connect('monitors-changed', () => {
+            this._recreateSpotlights();
+        });
+    }
+    
+    _createSpotlights() {
+        // Create a spotlight for each monitor
+        for (let monitor of Main.layoutManager.monitors) {
+            let spotlight = new _Spotlight(monitor);
+            this._spotlights.push(spotlight);
+        }
+    }
+    
+    _recreateSpotlights() {
+        // Destroy existing spotlights
+        for (let spotlight of this._spotlights) {
+            spotlight.destroy();
+        }
+        this._spotlights = [];
+        
+        // Create new spotlights
+        this._createSpotlights();
+        
+        // Restore visibility state
+        if (this._visible) {
+            this._setAllVisible(true);
+        }
+    }
+    
+    _setAllVisible(visible) {
+        for (let spotlight of this._spotlights) {
+            spotlight.set_visible(visible);
+        }
+    }
+    
+    show() {
+        this._visible = true;
+        this._setAllVisible(true);
+    }
+    
+    hide() {
+        this._visible = false;
+        this._setAllVisible(false);
+    }
+    
+    set_visible(visible) {
+        if (visible) {
+            this.show();
+        } else {
+            this.hide();
+        }
+    }
+    
+    destroy() {
+        this.hide();
+        
+        // Disconnect monitor change handler
+        if (this._monitorChangedId) {
+            Main.layoutManager.disconnect(this._monitorChangedId);
+        }
+        
+        // Destroy all spotlights
+        for (let spotlight of this._spotlights) {
+            spotlight.destroy();
+        }
+        this._spotlights = [];
     }
 }
