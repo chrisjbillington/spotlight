@@ -1,9 +1,12 @@
-import Meta from 'gi://Meta';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PointerWatcher from 'resource:///org/gnome/shell/ui/pointerWatcher.js';
 
+
+const POINTER_POLL_RATE = 1000 / 60;
 const SPOTLIGHT_DIAMETER_FRACTION = 0.32;
 const SPOTLIGHT_BORDER_WIDTH = 8;
+
 
 class _Spotlight {
     constructor(monitor) {
@@ -45,41 +48,28 @@ class _Spotlight {
         this._container.add_child(this._overlay);
         this._container.add_child(this._border);
         global.stage.add_child(this._container);
-        this._callbackId = null;
-        this._laters = global.compositor.get_laters();
 
         this._container.connect('destroy', () => {this._container = null});
         this._overlay.connect('destroy', () => {this._overlay = null});
         this._border.connect('destroy', () => {this._border = null});
-    }
 
-    _schedule_update() {
-        if (this._callbackId) {
-            return;
-        }
-        this._callbackId = this._laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
-            this._updatePosition();
-            this._callbackId = null;
-            this._schedule_update(); // next frame
-        });
+        this._pointerWatch = null;
     }
 
     show() {
         if (!this._container) {
             return;
         }
-        this._updatePosition();
+        this._pointerWatch = PointerWatcher.getPointerWatcher().addWatch(POINTER_POLL_RATE, this._updatePosition.bind(this));
+        const [x, y] = global.get_pointer();
+        this._updatePosition(x, y);
         this._container.show();
-        this._schedule_update();
     }
 
-    _updatePosition() {
+    _updatePosition(x, y) {
         if (!this._overlay || !this._border  || !this._container) {
             return;
         }
-        // Update spotlight position to follow cursor
-        let [x, y] = global.get_pointer();
-        
         // Center the spotlight on the cursor (relative to monitor)
         this._overlay.set_position(x - this._monitor.x - this._outerRadius, y - this._monitor.y - this._outerRadius);
         
@@ -92,10 +82,10 @@ class _Spotlight {
         if (this._container) {
             this._container.hide();
         }
-        if (this._callbackId) {
-            this._laters.remove(this._callbackId);
-            this._callbackId = null;
+        if (this._pointerWatch) {
+            this._pointerWatch.remove();
         }
+        this._pointerWatch = null;
     }
 
     set_visible(visible) {
