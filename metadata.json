@@ -2,6 +2,6 @@
     "uuid": "spotlight@chrisjbillington.github.com",
     "name": "Spotlight",
     "description": "A graphical spotlight overlay for presentations",
-    "shell-version": ["46", "47", "48", "49"],
+    "shell-version": ["48", "49"],
     "url": "https://github.com/chrisjbillington/spotlight"
 }
