@@ -5,7 +5,6 @@ import * as PointerWatcher from 'resource:///org/gnome/shell/ui/pointerWatcher.j
 
 const POINTER_POLL_RATE_MS = 1000 / 60;
 const SPOTLIGHT_DIAMETER_FRACTION = 0.32;
-const SPOTLIGHT_BORDER_WIDTH = 8;
 const IDLE_TIMEOUT_MS = 1000;
 
 
@@ -33,25 +32,11 @@ class _Spotlight {
             background-color: rgba(0, 0, 0, 0);
         `);
         
-        // Create the green border
-        let borderSize = (this._innerRadius + SPOTLIGHT_BORDER_WIDTH) * 2;
-        this._border = new St.Widget({
-            style_class: 'spotlight-border',
-        });
-        this._border.set_size(borderSize, borderSize);
-        this._border.set_style(`
-            border-radius: ${this._innerRadius + SPOTLIGHT_BORDER_WIDTH}px;
-            border: ${SPOTLIGHT_BORDER_WIDTH}px solid rgba(0, 255, 0, 0.5);
-            background-color: rgba(0, 0, 0, 0);
-        `);
-        
         this._widget.add_child(this._overlay);
-        this._widget.add_child(this._border);
         global.stage.add_child(this._widget);
 
         this._widget.connect('destroy', () => {this._widget = null});
         this._overlay.connect('destroy', () => {this._overlay = null});
-        this._border.connect('destroy', () => {this._border = null});
 
         this._pointer_watcher = PointerWatcher.getPointerWatcher();
         this._pointer_watch = null;
@@ -77,15 +62,11 @@ class _Spotlight {
     }
     
     _update_position(x, y) {
-        if (!this._overlay || !this._border  || !this._widget) {
+        if (!this._overlay || !this._widget) {
             return;
         }
         // Center the spotlight on the cursor:
         this._overlay.set_position(x - this._monitor.x - this._outerRadius, y - this._monitor.y - this._outerRadius);
-        
-        // Position the border (relative to monitor)
-        let borderOffset = this._innerRadius + SPOTLIGHT_BORDER_WIDTH;
-        this._border.set_position(x - this._monitor.x - borderOffset, y - this._monitor.y - borderOffset);
         if (!this._widget.visible) {
             this._widget.visible = true;
         }
@@ -115,9 +96,6 @@ class _Spotlight {
 
     destroy() {
         this.hide();
-        if (this._border) {
-            this._border.destroy();
-        }
         if (this._overlay) {
             this._overlay.destroy();
         }
