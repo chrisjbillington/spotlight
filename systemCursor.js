@@ -1,10 +1,18 @@
 import Clutter from 'gi://Clutter';
+import Meta from 'gi://Meta';
 
 // Class to hide and show the system cursor
 
 export class SystemCursor {
     constructor() {
-        this._cursor_tracker = global.backend.get_cursor_tracker();
+        if (global.backend && global.backend.get_cursor_tracker) {
+            // GNOME 47+
+            this._cursor_tracker = global.backend.get_cursor_tracker();
+        } else {
+            // GNOME 46
+            this._cursor_tracker = Meta.CursorTracker.get_for_display(global.display);
+        }
+
         this._seat = Clutter.get_default_backend().get_default_seat();
         this._unfocus_inhibited = false;
     }

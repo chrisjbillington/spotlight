@@ -39,7 +39,7 @@ Debian-based distros:
 sudo apt install gnome-shell-extensions
 ```
 
-Tested on GNOME shell 48–49.
+Compatible with GNOME shell versions 46–49.
 
 ## Planned features
 * allow custom keybinding to switch between laser pointer and spotlight modes
