@@ -95,7 +95,7 @@ class _Spotlight {
     }
 
     destroy() {
-        this.hide();
+        this.disable();
         if (this._overlay) {
             this._overlay.destroy();
         }
