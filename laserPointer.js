@@ -1,4 +1,5 @@
 import St from 'gi://St';
+import GLib from 'gi://GLib';
 import * as PointerWatcher from 'resource:///org/gnome/shell/ui/pointerWatcher.js';
 
 
@@ -15,7 +16,6 @@ export class LaserPointer {
         this._widget.connect('destroy', () => {this._widget = null});
         this._pointer_watcher = PointerWatcher.getPointerWatcher();
         this._pointer_watch = null;
-        this._idle_monitor = global.backend.get_core_idle_monitor();
         this._idle_watch = null;
     }
 
@@ -24,7 +24,6 @@ export class LaserPointer {
             return;
         }
         this._pointer_watch = this._pointer_watcher.addWatch(POINTER_POLL_RATE_MS, this._update_position.bind(this));
-        this._idle_watch = this._idle_monitor.add_idle_watch(IDLE_TIMEOUT_MS, this._on_idle.bind(this));
         const [x, y] = global.get_pointer();
         this._update_position(x, y);
         this._widget.show();
@@ -34,12 +33,23 @@ export class LaserPointer {
         if (this._widget.visible) {
             this._widget.visible = false;
         }
+        this._idle_watch = null;
+        return GLib.SOURCE_REMOVE;
+    }
+
+    _reset_idle_timeout() {
+        if (this._idle_watch) {
+            GLib.source_remove(this._idle_watch);
+            this._idle_watch = null;
+        }
+        this._idle_watch = GLib.timeout_add(GLib.PRIORITY_DEFAULT, IDLE_TIMEOUT_MS, this._on_idle.bind(this));
     }
 
     _update_position(x, y) {
         if (!this._widget) {
            return;
-       }
+        }
+        this._reset_idle_timeout();
         // move laser to cursor position:
         let [width, height] = this._widget.get_size();
         this._widget.set_position(x - width / 2, y - height / 2);
@@ -54,12 +64,12 @@ export class LaserPointer {
         }
         if (this._pointer_watch) {
             this._pointer_watch.remove();
+            this._pointer_watch = null;
         }
-        this._pointer_watch = null;
         if (this._idle_watch) {
-            this._idle_monitor.remove_watch(this._idle_watch);
+            GLib.source_remove(this._idle_watch);
+            this._idle_watch = null;
         }
-        this._idle_watch = null
     }
 
     set_enabled(enabled) {
