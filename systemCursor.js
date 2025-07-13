@@ -34,13 +34,13 @@ export class SystemCursor {
         }
 
         if (!this._cursor_hidden) {
-            this._hide()
+            this._hide();
             this._cursor_hidden = true;
             // Attach callback to re-hide it if it changes. From GNOME 49 we could use
             // this._cursorTracker.{un,}inhibit_cursor_visibility() instead
             this._cursor_tracker.connectObject(
                 'visibility-changed', this._hide.bind(this), this,
-            )
+            );
         }
     }
 
@@ -54,13 +54,13 @@ export class SystemCursor {
 
     _show() {
         if (!this._cursor_tracker.get_pointer_visible()) {
-            this._cursor_tracker.set_pointer_visible(true)
+            this._cursor_tracker.set_pointer_visible(true);
         }
     }
 
     _hide() {
         if (this._cursor_tracker.get_pointer_visible()) {
-            this._cursor_tracker.set_pointer_visible(false)
+            this._cursor_tracker.set_pointer_visible(false);
         }
     }
 

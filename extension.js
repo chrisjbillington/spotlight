@@ -1,5 +1,5 @@
-import * as Main from 'resource:///org/gnome/shell/ui/main.js'
-import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js'
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
@@ -86,8 +86,8 @@ export default class SpotlightExtension extends Extension {
         // console.log("_switch_mode()");
         const enabled = this._toggle.checked;
         this._spotlight_mode = !this._spotlight_mode;
-        this._laser_pointer.set_enabled(enabled && !this._spotlight_mode)
-        this._spotlight.set_enabled(enabled && this._spotlight_mode)
+        this._laser_pointer.set_enabled(enabled && !this._spotlight_mode);
+        this._spotlight.set_enabled(enabled && this._spotlight_mode);
     }
     
     disable() {

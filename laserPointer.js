@@ -47,7 +47,7 @@ export class LaserPointer {
 
     _update_position(x, y) {
         if (!this._widget) {
-           return;
+            return;
         }
         this._reset_idle_timeout();
         // move laser to cursor position:

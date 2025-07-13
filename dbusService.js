@@ -1,9 +1,9 @@
 import Gio from 'gi://Gio';
-import {EventEmitter} from 'resource:///org/gnome/shell/misc/signals.js'
+import {EventEmitter} from 'resource:///org/gnome/shell/misc/signals.js';
 
-const SERVICE_NAME = 'org.gnome.shell.extensions.spotlight'
-const OBJECT_PATH = '/org/gnome/shell/extensions/spotlight'
-const INTERFACE_NAME = 'org.gnome.shell.extensions.spotlight'
+const SERVICE_NAME = 'org.gnome.shell.extensions.spotlight';
+const OBJECT_PATH = '/org/gnome/shell/extensions/spotlight';
+const INTERFACE_NAME = 'org.gnome.shell.extensions.spotlight';
 
 const INTERFACE_SCHEMA = `
 <node>
