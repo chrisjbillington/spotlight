@@ -80,6 +80,25 @@ export default class SpotlightExtension extends Extension {
         this._laser_pointer.set_enabled(enabled);
         this._spotlight.set_enabled(false);
         this._system_cursor.set_visible(!enabled);
+        // Disable unredirect when active so that we always display on top of fullscreen
+        // windows:
+        if (enabled) {
+            if (global.compositor && global.compositor.disable_unredirect) {
+                // GNOME 47+
+                global.compositor.disable_unredirect()
+            } else {
+                // GNOME 46
+                Meta.disable_unredirect_for_display(global.display);
+            }
+        } else {
+            if (global.compositor && global.compositor.enable_unredirect) {
+                // GNOME 47+
+                global.compositor.enable_unredirect();
+            } else {
+                // GNOME 46
+                Meta.enable_unredirect_for_display(global.display);
+            }
+        }
     }
 
     _switch_mode() {
