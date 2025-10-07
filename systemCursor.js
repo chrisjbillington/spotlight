@@ -15,16 +15,25 @@ export class SystemCursor {
 
         this._seat = Clutter.get_default_backend().get_default_seat();
         this._unfocus_inhibited = false;
+        this._cursor_hidden = false;
     }
 
     show() {
-        this._cursor_tracker.disconnectObject(this);
         if (this._unfocus_inhibited) {
             this._seat.uninhibit_unfocus();
             this._unfocus_inhibited = false;
         }
-        this._show();
-        this._cursor_hidden = false;
+        if (this._cursor_hidden) {
+            if (this._cursor_tracker.uninhibit_cursor_visibility) {
+                // GNOME 49+
+                this._cursor_tracker.uninhibit_cursor_visibility();
+            } else {
+                // GNOME < 49
+                this._cursor_tracker.set_pointer_visible(true);
+                this._cursor_tracker.disconnectObject(this);
+            }
+            this._cursor_hidden = false;
+        }
     }
 
     hide() {
@@ -34,13 +43,24 @@ export class SystemCursor {
         }
 
         if (!this._cursor_hidden) {
-            this._hide();
+            if (this._cursor_tracker.inhibit_cursor_visibility) {
+                // GNOME 49+
+                this._cursor_tracker.inhibit_cursor_visibility();
+            } else {
+                // GNOME < 49
+                this._cursor_tracker.set_pointer_visible(false);
+                // Attach callback to re-hide it if it changes:
+                this._cursor_tracker.connectObject(
+                    'visibility-changed', () => {
+                        if (this._cursor_tracker.get_pointer_visible()) {
+                            this._cursor_tracker.set_pointer_visible(false);
+                        }
+                    },
+                    this,
+                );
+            }
             this._cursor_hidden = true;
-            // Attach callback to re-hide it if it changes. From GNOME 49 we could use
-            // this._cursorTracker.{un,}inhibit_cursor_visibility() instead
-            this._cursor_tracker.connectObject(
-                'visibility-changed', this._hide.bind(this), this,
-            );
+            
         }
     }
 
@@ -49,18 +69,6 @@ export class SystemCursor {
             this.show();
         } else {
             this.hide();
-        }
-    }
-
-    _show() {
-        if (!this._cursor_tracker.get_pointer_visible()) {
-            this._cursor_tracker.set_pointer_visible(true);
-        }
-    }
-
-    _hide() {
-        if (this._cursor_tracker.get_pointer_visible()) {
-            this._cursor_tracker.set_pointer_visible(false);
         }
     }
 
