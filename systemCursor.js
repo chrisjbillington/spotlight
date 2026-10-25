@@ -13,7 +13,13 @@ export class SystemCursor {
             this._cursor_tracker = Meta.CursorTracker.get_for_display(global.display);
         }
 
-        this._seat = Clutter.get_default_backend().get_default_seat();
+        if (Clutter.get_default_backend) {
+            // GNOME 50 and earlier
+            this._seat = Clutter.get_default_backend().get_default_seat();
+        } else {
+            // GNOME 51+
+            this._seat = global.stage.context.get_backend().get_default_seat();
+        }
         this._unfocus_inhibited = false;
         this._cursor_hidden = false;
     }

@@ -1,9 +1,8 @@
 import St from 'gi://St';
 import GLib from 'gi://GLib';
-import * as PointerWatcher from 'resource:///org/gnome/shell/ui/pointerWatcher.js';
+import {addPointerWatch} from './pointerWatch.js';
 
 
-const POINTER_POLL_RATE_MS = 1000 / 60;
 const IDLE_TIMEOUT_MS = 1000;
 
 export class LaserPointer {
@@ -14,7 +13,6 @@ export class LaserPointer {
         });
         global.stage.add_child(this._widget);
         this._widget.connect('destroy', () => {this._widget = null});
-        this._pointer_watcher = PointerWatcher.getPointerWatcher();
         this._pointer_watch = null;
         this._idle_watch = null;
     }
@@ -23,7 +21,7 @@ export class LaserPointer {
         if (!this._widget) {
             return;
         }
-        this._pointer_watch = this._pointer_watcher.addWatch(POINTER_POLL_RATE_MS, this._update_position.bind(this));
+        this._pointer_watch = addPointerWatch(this._update_position.bind(this));
         const [x, y] = global.get_pointer();
         this._update_position(x, y);
         this._widget.show();

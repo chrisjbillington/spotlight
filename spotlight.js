@@ -1,10 +1,9 @@
 import St from 'gi://St';
 import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import * as PointerWatcher from 'resource:///org/gnome/shell/ui/pointerWatcher.js';
+import {addPointerWatch} from './pointerWatch.js';
 
 
-const POINTER_POLL_RATE_MS = 1000 / 60;
 const SPOTLIGHT_DIAMETER_FRACTION = 0.32;
 const IDLE_TIMEOUT_MS = 1000;
 
@@ -39,7 +38,6 @@ class _Spotlight {
         this._widget.connect('destroy', () => {this._widget = null});
         this._overlay.connect('destroy', () => {this._overlay = null});
 
-        this._pointer_watcher = PointerWatcher.getPointerWatcher();
         this._pointer_watch = null;
         this._idle_watch = null;
     }
@@ -48,7 +46,7 @@ class _Spotlight {
         if (!this._widget) {
             return;
         }
-        this._pointer_watch = this._pointer_watcher.addWatch(POINTER_POLL_RATE_MS, this._update_position.bind(this));
+        this._pointer_watch = addPointerWatch(this._update_position.bind(this));
         const [x, y] = global.get_pointer();
         this._update_position(x, y);
         this._widget.show();
